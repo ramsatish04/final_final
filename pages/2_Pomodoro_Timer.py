@@ -36,44 +36,42 @@ if col2.button("Stop"):
     stop_timer()
 
 # --- Timer display ---
+placeholder = st.empty()
+
 if st.session_state.pomodoro_running and st.session_state.pomodoro_start:
-    elapsed = (datetime.now() - st.session_state.pomodoro_start).total_seconds()
-    target = work_minutes * 60 if st.session_state.pomodoro_mode == 'Work' else break_minutes * 60
-    remaining = max(0, target - elapsed)
-    mins, secs = divmod(int(remaining), 60)
+    while st.session_state.pomodoro_running:
+        elapsed = (datetime.now() - st.session_state.pomodoro_start).total_seconds()
+        target = work_minutes * 60 if st.session_state.pomodoro_mode == 'Work' else break_minutes * 60
+        remaining = max(0, target - elapsed)
+        mins, secs = divmod(int(remaining), 60)
 
-    st.header(f"{st.session_state.pomodoro_mode} — {mins:02d}:{secs:02d}")
+        with placeholder.container():
+            st.header(f"{st.session_state.pomodoro_mode} — {mins:02d}:{secs:02d}")
+            if st.session_state.pomodoro_mode == 'Work':
+                st.success("🔨 Work Time!")
+            else:
+                st.info("☕ Break Time!")
 
-    # Display current mode
-    if st.session_state.pomodoro_mode == 'Work':
-        st.success("🔨 Work Time!")
-    else:
-        st.info("☕ Break Time!")
+        if remaining == 0:
+            session_end = datetime.now()
+            session_start = st.session_state.pomodoro_start
+            mode = st.session_state.pomodoro_mode
+            duration = (session_end - session_start).seconds // 60
 
-    # Session complete
-    if remaining == 0:
-        session_end = datetime.now()
-        session_start = st.session_state.pomodoro_start
-        mode = st.session_state.pomodoro_mode
-        duration = (session_end - session_start).seconds // 60
+            st.session_state.pomodoro_history.append({
+                "Mode": mode,
+                "Started At": session_start.strftime("%H:%M:%S"),
+                "Ended At": session_end.strftime("%H:%M:%S"),
+                "Duration (min)": duration
+            })
 
-        # Add to history
-        st.session_state.pomodoro_history.append({
-            "Mode": mode,
-            "Started At": session_start.strftime("%H:%M:%S"),
-            "Ended At": session_end.strftime("%H:%M:%S"),
-            "Duration (min)": duration
-        })
+            st.session_state.pomodoro_mode = 'Break' if mode == 'Work' else 'Work'
+            st.session_state.pomodoro_start = datetime.now()
+        time.sleep(1)
+else:
+    st.info("Timer not running. Click 'Start' to begin.")
 
-        # Switch mode
-        st.session_state.pomodoro_mode = 'Break' if mode == 'Work' else 'Work'
-        st.session_state.pomodoro_start = datetime.now()
-
-    # Refresh every second
-    time.sleep(1)
-    st.experimental_rerun()
-
-# --- History Table ---
+# --- Session History Table ---
 st.subheader("Session History")
 if st.session_state.pomodoro_history:
     st.table(st.session_state.pomodoro_history)
